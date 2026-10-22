@@ -1,0 +1,14 @@
+node_modules/
+.npm-cache/
+.next/
+.env*
+!.env.example
+*.tsbuildinfo
+coverage/
+test-results/
+asset-contact-sheet*.jpg
+*.zip
+playwright-report/
+tests/e2e/.auth/
+**/patches/
+*.sql

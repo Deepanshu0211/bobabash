@@ -1,0 +1,12 @@
+import {spawnSync} from 'node:child_process';
+import {readdirSync,existsSync,readFileSync,writeFileSync} from 'node:fs';
+import {join} from 'node:path';
+const dir='supabase/migrations';
+const before=existsSync(dir)?readdirSync(dir):[];
+const cmd=process.platform==='win32'?'npx.cmd':'npx';
+const run=spawnSync(cmd,['supabase','migration','new','bobabash'],{stdio:'inherit',shell:process.platform==='win32'});
+if(run.status!==0)process.exit(run.status??1);
+const created=readdirSync(dir).filter(f=>!before.includes(f)&&f.endsWith('_bobabash.sql'));
+if(created.length!==1)throw new Error('Could not identify the CLI-created migration. No files changed.');
+writeFileSync(join(dir,created[0]),readFileSync('supabase/schema.sql'));
+console.log(`Migration ready: ${join(dir,created[0])}`);

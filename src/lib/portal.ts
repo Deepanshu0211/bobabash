@@ -9,7 +9,7 @@ import {checkImage} from './security.mjs';
 import {PortalError} from './errors';
 import type {
   Assignment, AuditRow, Award, BallotRow, Decision, EventSettings, Overview, Participant, Receipt,
-  AwardType, ResultRow, Role, Staff, Submission, TallyRow, VotingStatus, WallProject, WallView
+  AwardType, ResultRow, Role, Staff, Submission, TallyRow, Track, VoteCount, VotingStatus, WallProject, WallView
 } from './types';
 
 export {PortalError};
@@ -173,7 +173,7 @@ export const submitReview = (s: Session, id: string, recommendation: string, cri
 // ───────────── organizer ─────────────
 export const getOverview = (s: Session) => rpc<Overview>(s, 'admin_overview');
 export async function listSubmissions(s: Session, {status = '', search = ''} = {}): Promise<Submission[]> {
-  let q = s.db.from('submissions').select('*,participants(display_name,email)').order('submitted_at', {ascending: true, nullsFirst: false});
+  let q = s.db.from('submissions').select('*,participants(*)').order('submitted_at', {ascending: true, nullsFirst: false});
   if (status) q = q.eq('status', status);
   if (search) q = q.ilike('title', '%' + search.replace(/[%_\\]/g, '').slice(0, 100) + '%');
   return check(await q.limit(500)) as unknown as Submission[];
@@ -189,6 +189,7 @@ export async function listRoster(s: Session): Promise<(Participant & {project: s
   return rows.map(({submissions: sub, ...p}) => ({...p, project: (Array.isArray(sub) ? sub[0] : sub)?.title ?? null}));
 }
 export const getTally = (s: Session) => rpc<TallyRow[]>(s, 'shortlist_tally');
+export const listVoteCounts = (s: Session) => rpc<VoteCount[]>(s, 'admin_vote_counts');
 export async function listBallots(s: Session): Promise<BallotRow[]> {
   return check(await s.db.from('ballots').select('id,status,submitted_at,invalidated_reason,participants(display_name,email),ballot_selections(submission_id,submissions(title))').order('submitted_at', {ascending: false}).limit(1000)) as unknown as BallotRow[];
 }
@@ -200,7 +201,9 @@ export async function listAudit(s: Session, page = 1): Promise<{rows: AuditRow[]
 export const admin = {
   updateEvent: (s: Session, payload: Record<string, unknown>) => rpc<void>(s, 'admin_update_event', {payload}),
   setPhase: (s: Session, target: string) => rpc<void>(s, 'admin_set_phase', {target}),
-  importRoster: (s: Session, roster: {email: string; display_name: string}[]) => rpc<number>(s, 'admin_import_roster', {roster}),
+  importRoster: (s: Session, roster: {email: string; display_name: string; track?: Track}[]) => rpc<number>(s, 'admin_import_roster', {roster}),
+  setTrack: (s: Session, id: string, track: Track) => rpc<void>(s, 'admin_set_participant_track', {participant_id: id, track}),
+  setVotes: (s: Session, id: string, votes: number, reason: string) => rpc<void>(s, 'admin_set_votes', {submission_id: id, votes, reason}),
   setActive: (s: Session, id: string, active: boolean) => rpc<void>(s, 'admin_set_participant_active', {participant_id: id, active}),
   removeParticipant: async (s: Session, id: string) => {
     const result = await s.db.rpc('admin_remove_participant', {participant_id: id});

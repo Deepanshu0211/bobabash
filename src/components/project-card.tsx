@@ -6,7 +6,7 @@ import type {WallProject} from '@/lib/types';
 const MEDALS = {1: '1st place', 2: '2nd place', 3: '3rd place'} as const;
 export const PRIZE_NAMES = {creative: 'Creative Award', best_github: 'Best GitHub Award'} as const;
 
-/** One look per state, strongest first: winner, award, shortlisted, eligible, awaiting check, ineligible. */
+/** One look per state, strongest first: winner, award, shortlisted, eligible, awaiting check, showcase, ineligible. */
 export function wallState(p: WallProject) {
   if (p.standing) return 'winner';
   if (p.prizes?.length) return 'award';
@@ -15,6 +15,7 @@ export function wallState(p: WallProject) {
 }
 
 export function StatusTag({project}: {project: WallProject}) {
+  if (project.status === 'showcase') return <Badge tone="cream">showcase</Badge>;
   if (project.status === 'ineligible') return <Badge tone="muted">not eligible</Badge>;
   if (project.status === 'submitted') return <Badge tone="yellow">awaiting check</Badge>;
   return <Badge tone="lime">✓ eligible</Badge>;

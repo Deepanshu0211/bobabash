@@ -38,14 +38,15 @@ export default async function AdminSubmissions({searchParams}: {searchParams: Pr
             <details key={r.id} className="admin-row">
               <summary>
                 <span className="admin-row-title"><strong>{r.title}</strong><small>{r.participants?.display_name} · {r.participants?.email}</small></span>
-                <span className="badge-row"><Badge status={r.status}/>{r.shortlist_status !== 'pending' && <Badge status={r.shortlist_status}/>}</span>
+                <span className="badge-row">{r.participants?.track === 'showcase' && <Badge tone="cream">showcase</Badge>}<Badge status={r.status}/>{r.shortlist_status !== 'pending' && <Badge status={r.shortlist_status}/>}</span>
                 <span className="chev" aria-hidden="true">▾</span>
               </summary>
               <div className="admin-row-body">
                 <p className="prose">{r.description}</p>
                 <ExternalLinks demo={r.demo_url} repo={r.repository_url} compact/>
                 <p className="small muted">Category {r.category} · submitted {formatDate(r.submitted_at, event?.timezone)}{r.eligibility_reason && <> · reason: {r.eligibility_reason}</>}</p>
-                {checking && ['submitted', 'eligible', 'ineligible'].includes(r.status) && (
+                {r.participants?.track === 'showcase' && <p className="notice">Showcase project: it stays on the wall but can’t be marked eligible, reviewed or voted for. Move the person to the competition on the People page to change that.</p>}
+                {checking && r.participants?.track !== 'showcase' && ['submitted', 'eligible', 'ineligible'].includes(r.status) && (
                   <div className="decision-forms">
                     <ActionForm action={adminAction} label="✓ Mark eligible" variant="lime">
                       <input type="hidden" name="op" value="eligibility"/><input type="hidden" name="id" value={r.id}/><input type="hidden" name="eligible" value="true"/>

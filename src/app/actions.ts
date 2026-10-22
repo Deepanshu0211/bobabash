@@ -173,7 +173,16 @@ const ops: Record<string, (s: Session, form: FormData) => Promise<string | void>
     return 'Schedule saved.';
   },
   async phase(s, form) { await admin.setPhase(s, z.enum(['submissions', 'review', 'voting', 'closed']).parse(field(form, 'target'))); return 'Phase updated.'; },
-  async roster(s, form) { const n = await admin.importRoster(s, parseRoster(field(form, 'roster'))); return `${n ?? 0} roster rows imported.`; },
+  async roster(s, form) {
+    const track = z.enum(['competing', 'showcase']).parse(field(form, 'track') || 'competing');
+    const n = await admin.importRoster(s, parseRoster(field(form, 'roster')).map(r => ({...r, track})));
+    return `${n ?? 0} roster rows imported as ${track === 'showcase' ? 'showcase' : 'competition'}.`;
+  },
+  async track(s, form) { await admin.setTrack(s, idSchema.parse(field(form, 'id')), z.enum(['competing', 'showcase']).parse(field(form, 'track'))); return 'Track updated.'; },
+  async votes(s, form) {
+    await admin.setVotes(s, idSchema.parse(field(form, 'id')), z.coerce.number().int('Use a whole number.').min(0).max(100000).parse(field(form, 'votes')), field(form, 'reason').slice(0, 1000));
+    return 'Vote total updated and logged.';
+  },
   async active(s, form) { await admin.setActive(s, idSchema.parse(field(form, 'id')), field(form, 'active') === 'true'); },
   async remove(s, form) { await admin.removeParticipant(s, idSchema.parse(field(form, 'id'))); return 'Participant removed.'; },
   async invite(s, form) {

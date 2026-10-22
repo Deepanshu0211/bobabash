@@ -67,7 +67,8 @@ test('a signed-in stranger sees nothing and can call nothing', async () => {
 
 test('participants and reviewers cannot use any organizer function', async () => {
   const calls = [
-    "admin_update_event('{}')", "admin_set_phase('submissions')", "admin_import_roster('[]')", 'admin_set_participant_active(gen_random_uuid(), false)', 'admin_remove_participant(gen_random_uuid())',
+    "admin_update_event('{}')", "admin_set_phase('submissions')", "admin_import_roster('[]')", 'admin_set_participant_active(gen_random_uuid(), false)', 'admin_remove_participant(gen_random_uuid())', "admin_set_participant_track(gen_random_uuid(), 'showcase')",
+    "admin_set_votes(gen_random_uuid(), 1, 'a long enough reason')", 'admin_vote_counts()',
     "admin_invite_staff('z@q.test', 'organizer')", "admin_revoke_staff('rev@q.test', 'reviewer')", 'admin_set_eligibility(gen_random_uuid(), true, null)',
     'admin_assign_reviewer(gen_random_uuid(), gen_random_uuid())', 'admin_unassign(gen_random_uuid())', 'admin_auto_assign(3)',
     "admin_resolve_submission(gen_random_uuid(), 'shortlisted', 'a reason here')", 'admin_finalize_shortlist()', "admin_emergency_remove(gen_random_uuid(), 'x')",
@@ -122,6 +123,26 @@ test('submission rules: length, links, ownership, deactivation', async () => {
   await as('org', 'select public.admin_set_participant_active($1, false)', [id]);
   await fails(as('e', 'select public.save_my_submission($1)', [{title: 'Edited', description: 'Trying while paused here.'}]), 'BB403');
   await as('org', 'select public.admin_set_participant_active($1, true)', [id]);
+});
+
+test('showcase projects stay on the wall but can never compete', async () => {
+  await as('org', 'select public.admin_import_roster($1)', [JSON.stringify([{email: 'h@q.test', display_name: 'Hal', track: 'showcase'}])]);
+  await fails(as('org', 'select public.admin_import_roster($1)', [JSON.stringify([{email: 'z@q.test', display_name: 'Zed', track: 'judge'}])]), 'BB400');
+  await user('h', 'h@q.test'); await as('h', 'select public.project_wall()').catch(() => {});
+  await as('h', 'select public.save_my_submission($1, true)', [{title: 'Hal showcase', description: 'A showcase project for everyone to see.', demo_url: 'https://h.test', repository_url: 'https://github.com/q/h'}]);
+  sub.h = (await as('h', 'select id from public.submissions'))[0].id;
+  const wall = await as('a', 'select title, status from public.project_wall()');
+  assert.equal(wall.find(w => w.title === 'Hal showcase')?.status, 'showcase', 'on the wall, tagged showcase');
+  await fails(as('org', 'select public.admin_set_eligibility($1, true, null)', [sub.h]), 'BB409');
+  // Moved into the competition it can be checked; moved back out, it leaves review again.
+  const [{id: hid}] = (await db.query("select id from public.participants where email = 'h@q.test'")).rows;
+  await as('org', "select public.admin_set_participant_track($1, 'competing')", [hid]);
+  await as('org', 'select public.admin_set_eligibility($1, true, null)', [sub.h]);
+  await as('org', 'select public.admin_import_roster($1)', [JSON.stringify([{email: 'h@q.test', display_name: 'Hal', track: 'showcase'}])]);
+  assert.equal((await db.query('select status from public.submissions where id = $1', [sub.h])).rows[0].status, 'submitted', 'showcase leaves review');
+  await as('org', 'select public.admin_import_roster($1)', [JSON.stringify([{email: 'h@q.test', display_name: 'Hal Again'}])]);
+  assert.equal((await db.query("select track from public.participants where email = 'h@q.test'")).rows[0].track, 'showcase', 'import without a track keeps it');
+  assert.equal((await db.query("select count(*)::int n from public.audit_logs where action = 'participant.track_changed'")).rows[0].n, 2);
 });
 
 test('reviews: privacy between reviewers, flag notes, unassign rules', async () => {
@@ -200,4 +221,41 @@ test('removing a participant takes their project along, but never once votes exi
     const [{email}] = (await db.query('select p.email from public.submissions s join public.participants p on p.id = s.participant_id where s.id = $1', [picks[0]])).rows;
     await fails(as('org', 'select public.admin_remove_participant($1)', [await pid(email)]), 'BB409');
   }
+});
+
+test('organizers can set vote totals by hand, and showcase participants cannot vote', async () => {
+  const [{phase}] = (await db.query('select phase from public.event_settings')).rows;
+  assert.equal(phase, 'voting', 'earlier tests leave voting open');
+  const [{id: hid}] = (await db.query("select id from public.participants where email = 'h@q.test'")).rows;
+  await fails(as('org', "select public.admin_set_participant_track($1, 'competing')", [hid]), 'BB403'); // frozen
+  assert.equal((await as('h', 'select public.my_voting_status() s'))[0].s.reason, 'showcase');
+  const counts = await as('org', 'select * from public.admin_vote_counts()');
+  const target = counts[counts.length - 1];
+  await fails(as('h', 'select public.submit_ballot($1)', [counts.slice(0, 3).map(c => c.submission_id)]), 'BB403');
+  await fails(as('org', "select public.admin_set_votes($1, 10, 'short')", [target.submission_id]), 'BB400');
+  await fails(as('org', "select public.admin_set_votes($1, -1, 'a long enough reason')", [target.submission_id]), 'BB400');
+  await fails(as('org', "select public.admin_set_votes($1, 5, 'a long enough reason')", [sub.h]), 'BB404');
+  await as('org', "select public.admin_set_votes($1, 42, 'Recount of the paper ballots')", [target.submission_id]);
+  const after = (await as('org', 'select * from public.admin_vote_counts()')).find(c => c.submission_id === target.submission_id);
+  assert.equal(Number(after.total), 42); assert.equal(after.delta, 42 - Number(target.ballots)); assert.equal(after.reason, 'Recount of the paper ballots');
+  const results = await as('org', 'select * from public.vote_results()');
+  assert.equal(results[0].submission_id, target.submission_id, 'results use the edited total'); assert.equal(Number(results[0].votes), 42);
+  await as('org', "select public.admin_set_votes($1, $2, 'Back to the ballot count')", [target.submission_id, Number(target.ballots)]);
+  assert.equal((await db.query('select count(*)::int n from public.vote_adjustments')).rows[0].n, 0, 'matching the ballots removes the adjustment');
+  assert.equal((await db.query("select count(*)::int n from public.audit_logs where action = 'votes.adjusted'")).rows[0].n, 2);
+});
+
+test('votes stay secret: nobody but organizers sees any vote until results are published', async () => {
+  // Earlier tests left voting open with at least one ballot cast.
+  assert.ok((await db.query('select count(*)::int n from public.ballots')).rows[0].n > 0, 'a ballot exists');
+  for (const who of ['a', 'b', 'rev', 'h']) {
+    await fails(as(who, 'select * from public.vote_results()'), 'BB403');
+    assert.equal((await as(who, 'select * from public.ballot_selections')).length, 0, `${who} sees no picks`);
+    assert.equal((await as(who, 'select * from public.vote_adjustments')).length, 0, `${who} sees no adjustments`);
+    const ballots = await as(who, 'select participant_id from public.ballots');
+    assert.ok(ballots.length <= 1, `${who} sees at most their own ballot`);
+    assert.ok((await as(who, 'select standing from public.project_wall()')).every(r => r.standing === null), `${who} sees no standings`);
+  }
+  assert.equal((await as(null, 'select * from public.public_highlights()')).length, 0, 'landing shows no winners');
+  assert.ok((await as('org', 'select * from public.vote_results()')).length > 0, 'organizers can see totals');
 });

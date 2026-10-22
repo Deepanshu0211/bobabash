@@ -49,6 +49,7 @@ export default async function Projects({searchParams}: {searchParams: Promise<Re
         {frozen && <li className="state-shortlisted">shortlisted</li>}
         <li className="state-eligible">eligible</li>
         <li className="state-submitted">awaiting check</li>
+        <li className="state-showcase">showcase (not competing)</li>
         <li className="state-ineligible">not eligible</li>
       </ul>
       <p className="muted result-count">{total} project{total === 1 ? '' : 's'}{search && <> matching “{search}”</>}</p>

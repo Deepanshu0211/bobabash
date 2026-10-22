@@ -987,3 +987,33 @@ code, pre, kbd { font-family: var(--font-mono); }
 .login-step .link-button { justify-self: start; background: none; border: 0; padding: 2px 0; font: inherit; font-size: 13px; color: #b0533f; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 .login-step .link-button:hover { color: #7a3f2f; }
 .form-message.info { color: #3d5a66; }
+
+/* ───────── showcase track (on the wall, not competing) ───────── */
+.project-card.state-showcase { border: 1.5px dotted #c9b88a; background: #fffcf1; }
+.wall-legend .state-showcase::before { border: 1.5px dotted #c9b88a; background: #fff9e9; }
+.people-list.roster li { grid-template-columns: auto minmax(0, 1fr) auto auto; }
+.roster-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; align-items: center; }
+.roster-actions .action-form { display: contents; }
+@media (max-width: 720px) {
+  .people-list.roster li { grid-template-columns: auto minmax(0, 1fr); }
+  .people-list.roster li .badge-row, .people-list.roster li .roster-actions { grid-column: 2; justify-content: flex-start; }
+  .people-list.roster li .badge:nth-of-type(2) { display: inline-flex; }
+}
+.people-list.roster li { grid-template-columns: auto minmax(0, 1fr) auto auto; }
+.roster-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; align-items: center; }
+@media (max-width: 720px) {
+  .people-list.roster li { grid-template-columns: auto minmax(0, 1fr); }
+  .people-list.roster li .badge-row, .people-list.roster li .roster-actions { grid-column: 2; justify-content: flex-start; }
+  .people-list.roster li .badge:nth-of-type(2) { display: inline-flex; }
+  .people-list.roster li .roster-actions .action-form { grid-column: auto; }
+}
+
+/* ───────── organizer vote totals ───────── */
+.vote-totals { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 4px; max-height: 560px; overflow: auto; }
+.vote-totals li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; gap: 12px; align-items: center; padding: 8px 4px; border-bottom: 1px dashed #d4dcda; font-size: 13px; }
+.vote-title { display: flex; flex-direction: column; min-width: 0; line-height: 1.3; }
+.vote-title small { color: #7a5a1d; }
+.vote-total { font-family: var(--font-display, inherit); font-size: 20px; min-width: 2.5ch; text-align: right; }
+.vote-totals .action-form .form-message { display: none; }
+.vote-totals .action-form fieldset > .button { margin-top: 0; }
+@media (max-width: 720px) { .vote-totals li { grid-template-columns: minmax(0, 1fr) auto; } }

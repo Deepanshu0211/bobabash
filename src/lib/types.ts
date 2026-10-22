@@ -14,19 +14,20 @@ export type EventSettings = {
   venue_name: string | null; venue_address: string | null; announcement: string | null;
   shortlist_finalized_at: string | null; results_published_at: string | null; updated_at: string;
 };
-export type Participant = {id: string; email: string; display_name: string; active: boolean; user_id: string | null};
+export type Track = 'competing' | 'showcase';
+export type Participant = {id: string; email: string; display_name: string; active: boolean; user_id: string | null; track: Track};
 export type Submission = {
   id: string; participant_id: string; title: string; description: string;
   demo_url: string | null; repository_url: string | null; category: string; cover_image_path: string | null;
   status: SubmissionStatus; shortlist_status: ShortlistStatus; eligibility_reason: string | null;
   resolution: ShortlistStatus | null; resolution_reason: string | null;
   submitted_at: string | null; updated_at: string; cover?: string | null;
-  participants?: {display_name: string; email: string} | null;
+  participants?: {display_name: string; email: string; track?: Track} | null;
 };
 export type WallProject = {
   id: string; title: string; description: string; demo_url: string | null; repository_url: string | null;
   category: string; cover_image_path: string | null; creator_name: string | null;
-  status: 'submitted' | 'eligible' | 'ineligible'; is_shortlisted: boolean; is_mine: boolean;
+  status: 'submitted' | 'eligible' | 'ineligible' | 'showcase'; is_shortlisted: boolean; is_mine: boolean;
   standing: number | null; prizes: AwardType[] | null; cover?: string | null;
 };
 export type WallView = 'all' | 'eligible' | 'shortlisted' | 'winners';
@@ -49,9 +50,11 @@ export type BallotRow = {id: string; status: 'valid' | 'invalidated'; submitted_
   ballot_selections?: {submission_id: string; submissions: {title: string} | null}[]};
 export type AuditRow = {id: number; actor_id: string | null; action: string; target_type: string | null; target_id: string | null; details: Record<string, unknown>; created_at: string};
 export type Receipt = {ballot_id: string; submitted_at: string; status: 'valid' | 'invalidated'; selections: {id: string; title: string}[]};
-export type VotingStatus = {eligible: boolean; reason: 'ok' | 'already_voted' | 'voting_closed' | 'not_participant'; has_ballot: boolean};
+export type VotingStatus = {eligible: boolean; reason: 'ok' | 'already_voted' | 'voting_closed' | 'not_participant' | 'showcase'; has_ballot: boolean};
 export type Overview = {
   participants: number; linked: number; submissions: Partial<Record<SubmissionStatus, number>>;
   assignments: number; completed_reviews: number; reviewers: number; shortlisted: number; ballots: number; invalidated_ballots: number;
+  showcase?: number; adjusted_projects?: number;
 };
+export type VoteCount = {submission_id: string; title: string; ballots: number; delta: number; total: number; reason: string | null; adjusted_at: string | null};
 export type ActionState = {ok?: boolean; message: string; id?: string; needCode?: boolean};

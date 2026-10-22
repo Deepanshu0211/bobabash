@@ -1,14 +1,23 @@
-import {formatDate, getEvent, getOverview, listBallots, requireRole} from '@/lib/portal';
+import {formatDate, getEvent, getOverview, listBallots, listVoteCounts, requireRole} from '@/lib/portal';
 import {adminAction} from '@/app/actions';
-import {ConfirmAction, TextArea} from '@/components/form';
+import {ConfirmAction, Field, TextArea} from '@/components/form';
 import {Badge, Empty, PageHeading, Progress, Stat, Window} from '@/components/ui';
 import {CountUp} from '@/components/motion';
 
 export const metadata = {title: 'Voting'};
 
+const phase0 = (p?: string) => p === 'voting' || p === 'closed';
+
 export default async function AdminVoting() {
   const s = await requireRole('organizer', '/admin/voting');
   const [event, stats, ballots] = await Promise.all([getEvent(), getOverview(s), listBallots(s)]);
+  // Null when the live database doesn't have the vote-edit patch yet.
+  const counts = await listVoteCounts(s).catch(() => null);
+  const canEdit = phase0(event?.phase);
+  const totalBallots = (counts ?? []).reduce((n, c) => n + Number(c.ballots), 0);
+  const totalVotes = (counts ?? []).reduce((n, c) => n + Number(c.total), 0);
+  // Showcase participants don't vote, so turnout counts the competition only.
+  const voters = Math.max(0, stats.participants - (stats.showcase ?? 0));
   const tz = event?.timezone ?? 'Asia/Kolkata';
   const phase = event?.phase;
   const canInvalidate = phase === 'voting' || phase === 'closed';
@@ -30,7 +39,7 @@ export default async function AdminVoting() {
       </PageHeading>
       <div className="stats-grid" data-stagger>
         <Stat icon="cup" label="valid ballots" value={<CountUp value={stats.ballots}/>}/>
-        <Stat icon="people" label="turnout" value={<><CountUp value={stats.participants ? Math.round((stats.ballots / stats.participants) * 100) : 0}/>%</>}/>
+        <Stat icon="people" label="turnout" value={<><CountUp value={voters ? Math.round((stats.ballots / voters) * 100) : 0}/>%</>}/>
         <Stat icon="star" label="shortlisted projects" value={<CountUp value={stats.shortlisted}/>}/>
         <Stat icon="x" label="invalidated" value={<CountUp value={stats.invalidated_ballots}/>}/>
       </div>
@@ -39,8 +48,8 @@ export default async function AdminVoting() {
           <div>
             <p className="eyebrow">voting booth</p>
             <h2>{phase === 'voting' ? 'Open: participants can vote now' : phase === 'closed' ? 'Closed: you can reopen it' : phase === 'shortlist_frozen' ? 'Ready to open' : phase === 'results_published' ? 'Results are published' : 'Not ready yet'}</h2>
-            <p className="small muted">{stats.ballots} of {stats.participants} participants have voted.</p>
-            <Progress value={stats.ballots} max={stats.participants} label="Turnout"/>
+            <p className="small muted">{stats.ballots} of {voters} competition participants have voted.{stats.showcase ? ` ${stats.showcase} showcase participants don’t vote.` : ''}</p>
+            <Progress value={stats.ballots} max={voters} label="Turnout"/>
           </div>
           <div className="phase-actions">
             {phase === 'shortlist_frozen' && (
@@ -64,6 +73,30 @@ export default async function AdminVoting() {
             {!['shortlist_frozen', 'voting', 'closed'].includes(phase ?? '') && <p className="small muted">Voting controls appear once the shortlist is frozen.</p>}
           </div>
         </div>
+      </Window>
+      <Window title="vote_totals.csv" tone="lime" icon="star" reveal>
+        <div className="row"><h2>Vote totals</h2>{counts && <span className="muted">{totalVotes} total{totalVotes !== totalBallots ? ` (${totalBallots} from ballots)` : ''}</span>}</div>
+        <p className="small muted">Set any project’s total by hand, for example after a paper recount. Every change needs a reason and goes in the audit log. Ballots cast later still add on top. Totals lock when results are published.</p>
+        {counts === null ? <p className="notice">Run <code>supabase/patches/2026-10-22-tracks-and-vote-edits.sql</code> in the Supabase SQL Editor to edit totals.</p>
+          : counts.length ? (
+          <ul className="vote-totals" data-lenis-prevent>
+            {counts.map(c => (
+              <li key={c.submission_id}>
+                <span className="vote-title"><strong>{c.title}</strong>{c.delta !== 0 && <small>{c.ballots} from ballots, {c.delta > 0 ? '+' : ''}{c.delta} by hand: {c.reason}</small>}</span>
+                <b className="vote-total">{c.total}</b>
+                {c.delta !== 0 ? <Badge tone="yellow">edited</Badge> : <span/>}
+                {canEdit ? (
+                  <ConfirmAction action={adminAction} label="Edit" title="edit_votes.exe" variant="small-button secondary"
+                    fields={<><input type="hidden" name="op" value="votes"/><input type="hidden" name="id" value={c.submission_id}/>
+                      <Field label="New vote total" name="votes" type="number" value={Number(c.total)} required/>
+                      <TextArea name="reason" label="Reason (10+ characters)" maxLength={1000} rows={2} required/></>}>
+                    <p><strong>{c.title}</strong> has {c.ballots} vote{Number(c.ballots) === 1 ? '' : 's'} from ballots{c.delta !== 0 ? ` and shows ${c.total} after an earlier edit` : ''}. Set the total everyone will see. Setting it back to {c.ballots} removes the edit.</p>
+                  </ConfirmAction>
+                ) : <span/>}
+              </li>
+            ))}
+          </ul>
+        ) : <Empty title="No shortlisted projects yet."/>}
       </Window>
       <Window title="ballot_ledger.log" icon="receipt" reveal>
         <p className="small muted">Invalidate only under a documented integrity rule, never because someone voted for a friend. Invalidated ballots stay in the record and cannot be replaced.</p>

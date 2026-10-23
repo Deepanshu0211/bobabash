@@ -45,7 +45,7 @@ export default async function AdminSubmissions({searchParams}: {searchParams: Pr
                 <p className="prose">{r.description}</p>
                 <ExternalLinks demo={r.demo_url} repo={r.repository_url} compact/>
                 <p className="small muted">Category {r.category} · submitted {formatDate(r.submitted_at, event?.timezone)}{r.eligibility_reason && <> · reason: {r.eligibility_reason}</>}</p>
-                {r.participants?.track === 'showcase' && <p className="notice">Showcase project: it stays on the wall but can’t be marked eligible, reviewed or voted for. Move the person to the competition on the People page to change that.</p>}
+                {r.participants?.track === 'showcase' && <p className="notice">Showcase project (only organizers see this). It stays on the wall as a normal project awaiting its check, and is never judged, shortlisted or voted for.</p>}
                 {checking && r.participants?.track !== 'showcase' && ['submitted', 'eligible', 'ineligible'].includes(r.status) && (
                   <div className="decision-forms">
                     <ActionForm action={adminAction} label="✓ Mark eligible" variant="lime">

@@ -7,9 +7,11 @@ export function imageKind(bytes) {
   if (bytes.length >= 12 && String.fromCharCode(...bytes.slice(0,4))==='RIFF' && String.fromCharCode(...bytes.slice(8,12))==='WEBP') return {mime:'image/webp',ext:'webp'};
   return null;
 }
-export function checkImage(bytes, declaredType) {
+// The file's own bytes decide its type; the browser's declared type is ignored, because a
+// PNG saved as .jpg (very common with screenshots) is still a perfectly good PNG.
+export function checkImage(bytes) {
   if (!bytes.length || bytes.length > 5 * 1024 * 1024) throw new Error('Images must be between 1 byte and 5 MB.');
   const kind=imageKind(bytes);
-  if (!kind || kind.mime !== declaredType) throw new Error('Choose a valid PNG, JPEG or WebP image.');
+  if (!kind) throw new Error('That file isn’t a PNG, JPEG or WebP image. HEIC photos and GIFs aren’t supported.');
   return kind;
 }

@@ -132,7 +132,7 @@ test('showcase projects stay on the wall but can never compete', async () => {
   await as('h', 'select public.save_my_submission($1, true)', [{title: 'Hal showcase', description: 'A showcase project for everyone to see.', demo_url: 'https://h.test', repository_url: 'https://github.com/q/h'}]);
   sub.h = (await as('h', 'select id from public.submissions'))[0].id;
   const wall = await as('a', 'select title, status from public.project_wall()');
-  assert.equal(wall.find(w => w.title === 'Hal showcase')?.status, 'showcase', 'on the wall, tagged showcase');
+  assert.equal(wall.find(w => w.title === 'Hal showcase')?.status, 'showcase', 'on the wall (the app shows it as a normal project)');
   await fails(as('org', 'select public.admin_set_eligibility($1, true, null)', [sub.h]), 'BB409');
   // Moved into the competition it can be checked; moved back out, it leaves review again.
   const [{id: hid}] = (await db.query("select id from public.participants where email = 'h@q.test'")).rows;

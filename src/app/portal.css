@@ -988,9 +988,6 @@ code, pre, kbd { font-family: var(--font-mono); }
 .login-step .link-button:hover { color: #7a3f2f; }
 .form-message.info { color: #3d5a66; }
 
-/* ───────── showcase track (on the wall, not competing) ───────── */
-.project-card.state-showcase { border: 1.5px dotted #c9b88a; background: #fffcf1; }
-.wall-legend .state-showcase::before { border: 1.5px dotted #c9b88a; background: #fff9e9; }
 .people-list.roster li { grid-template-columns: auto minmax(0, 1fr) auto auto; }
 .roster-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; align-items: center; }
 .roster-actions .action-form { display: contents; }
@@ -1017,3 +1014,15 @@ code, pre, kbd { font-family: var(--font-mono); }
 .vote-totals .action-form .form-message { display: none; }
 .vote-totals .action-form fieldset > .button { margin-top: 0; }
 @media (max-width: 720px) { .vote-totals li { grid-template-columns: minmax(0, 1fr) auto; } }
+
+/* ───────── cover upload: one big target ───────── */
+.cover-upload .cover-preview { position: relative; }
+.cover-busy { position: absolute; inset: 0; display: grid; place-content: center; gap: 8px; justify-items: center; background: #fffef6cc; font-size: 13px; font-weight: 700; color: #2d6479; }
+.cover-upload .file-drop { display: flex; align-items: center; gap: 14px; padding: 16px 18px; border-width: 2px; border-radius: 10px; }
+.cover-upload .file-drop:hover, .cover-upload .file-drop.over { background: #e2f4fb; border-color: #3f8ea6; border-style: solid; }
+.cover-upload .file-drop:focus-within { outline: 3px solid #f2a38d; outline-offset: 2px; }
+.cover-upload .file-drop.busy { cursor: progress; opacity: .7; }
+.file-drop-icon { flex: none; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: #fffef6; border: 1.5px solid #9fc9d8; color: #2d6479; }
+.file-drop-text { display: grid; gap: 3px; }
+.file-drop-text strong { font-size: 14.5px; color: #24495a; }
+.file-drop-text small { color: #6c8890; font-size: 12px; }

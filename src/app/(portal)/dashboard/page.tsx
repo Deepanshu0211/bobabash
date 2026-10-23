@@ -56,7 +56,6 @@ export default async function Dashboard() {
             <span className="task-icon"><Icon name="cup"/></span>
             <h2>Voting booth</h2>
             {voting?.has_ballot ? <><Pearls filled={3}/><p>Your ballot is recorded. Thank you!</p><Link className="button secondary" href="/voting/receipt">See receipt →</Link></>
-              : voting?.reason === 'showcase' ? <><Pearls filled={0}/><p>You’re in the showcase: your project is on the wall for everyone to see. Voting and prizes are for the competition list.</p><Link className="button secondary" href="/projects">Browse projects →</Link></>
               : voting?.eligible ? <><Pearls filled={0}/><p>Three votes are waiting for you.</p><Link className="button coral" href="/voting">Vote now →</Link></>
                 : <><Pearls filled={0}/><p>Voting opens when organizers open it.</p><Link className="button secondary" href="/projects">Browse projects →</Link></>}
           </article>

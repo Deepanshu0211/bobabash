@@ -41,7 +41,7 @@ export const getSession = cache(async (): Promise<Session | null> => {
   if (!user) return null;
   const [roles, participant] = await Promise.all([
     db.from('user_roles').select('role').eq('user_id', user.id),
-    db.from('participants').select('*').eq('user_id', user.id).maybeSingle()
+    db.from('participants').select('id,email,display_name,user_id,active,created_at').eq('user_id', user.id).maybeSingle()
   ]);
   const p = check(participant) as Participant | null;
   const saved = typeof user.user_metadata?.display_name === 'string' && user.user_metadata.display_name.trim() ? user.user_metadata.display_name.trim() : null;
@@ -90,11 +90,15 @@ export async function listProjects(s: Session, {search = '', shortlistedOnly = f
   let result = await s.db.rpc('project_wall', view === 'all' ? args : {...args, wall_view: view});
   // Database without the open-wall patch: it has no wall_view filter, so fall back to the plain list.
   if (result.error?.code === 'PGRST202') result = await s.db.rpc('project_wall', args);
-  const rows = check(result) as (WallProject & {total_count: number})[];
+  const rows = hideTrack(check(result) as (WallProject & {total_count: number})[]);
   return {projects: await signCovers(s, rows), total: Number(rows[0]?.total_count ?? 0)};
 }
+// The live database labels showcase projects 'showcase' on the wall; participants must never see
+// that, so they show as a normal project awaiting its check.
+const hideTrack = <T extends {status: string}>(rows: T[]) => rows.map(r => (r.status === 'showcase' ? {...r, status: 'submitted'} : r));
+
 export async function getProject(s: Session, id: string) {
-  const rows = await rpc<WallProject[]>(s, 'project_wall', {only_id: id});
+  const rows = hideTrack(await rpc<WallProject[]>(s, 'project_wall', {only_id: id}));
   if (!rows[0]) return null;
   return (await signCovers(s, rows))[0];
 }
@@ -113,10 +117,13 @@ export async function uploadCover(s: Session, file: File) {
   if (file.size > 5 * 1024 * 1024) throw new PortalError(400, 'Images must be 5 MB or smaller.');
   const bytes = new Uint8Array(await file.arrayBuffer());
   let kind;
-  try { kind = checkImage(bytes, file.type); } catch (e) { throw new PortalError(400, (e as Error).message); }
+  try { kind = checkImage(bytes); } catch (e) { throw new PortalError(400, (e as Error).message); }
   const path = `${s.userId}/${crypto.randomUUID()}.${kind.ext}`;
   const {error} = await s.db.storage.from('project-covers').upload(path, bytes, {contentType: kind.mime, upsert: false});
-  if (error) throw new PortalError(403, 'The image could not be uploaded. Submissions may be closed.');
+  if (error) {
+    console.error('cover upload failed:', error.message);
+    throw new PortalError(403, 'The image could not be uploaded. Submissions may be closed, or your session expired: refresh and try again.');
+  }
   try {
     const previous = await rpc<string | null>(s, 'attach_my_cover', {object_path: path});
     if (previous) await s.db.storage.from('project-covers').remove([previous]);
@@ -172,11 +179,17 @@ export const submitReview = (s: Session, id: string, recommendation: string, cri
 
 // ───────────── organizer ─────────────
 export const getOverview = (s: Session) => rpc<Overview>(s, 'admin_overview');
+// Tracks for organizer pages only; participant pages never load them.
+async function trackMap(s: Session) {
+  const {data, error} = await s.db.from('participants').select('id,track');
+  return new Map<string, Track>(error ? [] : (data as {id: string; track: Track}[]).map(r => [r.id, r.track]));
+}
 export async function listSubmissions(s: Session, {status = '', search = ''} = {}): Promise<Submission[]> {
-  let q = s.db.from('submissions').select('*,participants(*)').order('submitted_at', {ascending: true, nullsFirst: false});
+  let q = s.db.from('submissions').select('*,participants(display_name,email)').order('submitted_at', {ascending: true, nullsFirst: false});
   if (status) q = q.eq('status', status);
   if (search) q = q.ilike('title', '%' + search.replace(/[%_\\]/g, '').slice(0, 100) + '%');
-  return check(await q.limit(500)) as unknown as Submission[];
+  const [rows, tracks] = await Promise.all([q.limit(500), trackMap(s)]);
+  return (check(rows) as unknown as Submission[]).map(r => r.participants ? {...r, participants: {...r.participants, track: tracks.get(r.participant_id) ?? 'competing'}} : r);
 }
 export async function listAllAssignments(s: Session): Promise<Assignment[]> {
   return check(await s.db.from('reviewer_assignments').select('id,submission_id,reviewer_id,status,assigned_at,reviews(recommendation,note,revision,submitted_at)').limit(2000)) as unknown as Assignment[];
@@ -185,13 +198,15 @@ export async function listStaff(s: Session): Promise<Staff[]> {
   return (await rpc<Staff[]>(s, 'admin_staff')).map(r => ({...r, assigned: Number(r.assigned), completed: Number(r.completed)}));
 }
 export async function listRoster(s: Session): Promise<(Participant & {project: string | null})[]> {
-  const rows = check(await s.db.from('participants').select('*, submissions(title)').order('display_name').limit(1000)) as (Participant & {submissions: {title: string} | {title: string}[] | null})[];
-  return rows.map(({submissions: sub, ...p}) => ({...p, project: (Array.isArray(sub) ? sub[0] : sub)?.title ?? null}));
+  const [res, tracks] = await Promise.all([s.db.from('participants').select('id,email,display_name,user_id,active,created_at, submissions(title)').order('display_name').limit(1000), trackMap(s)]);
+  const rows = check(res) as (Participant & {submissions: {title: string} | {title: string}[] | null})[];
+  return rows.map(({submissions: sub, ...p}) => ({...p, track: tracks.get(p.id) ?? 'competing', project: (Array.isArray(sub) ? sub[0] : sub)?.title ?? null}));
 }
 export const getTally = (s: Session) => rpc<TallyRow[]>(s, 'shortlist_tally');
 export const listVoteCounts = (s: Session) => rpc<VoteCount[]>(s, 'admin_vote_counts');
 export async function listBallots(s: Session): Promise<BallotRow[]> {
-  return check(await s.db.from('ballots').select('id,status,submitted_at,invalidated_reason,participants(display_name,email),ballot_selections(submission_id,submissions(title))').order('submitted_at', {ascending: false}).limit(1000)) as unknown as BallotRow[];
+  const [res, tracks] = await Promise.all([s.db.from('ballots').select('id,status,submitted_at,invalidated_reason,participant_id,participants(display_name,email),ballot_selections(submission_id,submissions(title))').order('submitted_at', {ascending: false}).limit(1000), trackMap(s)]);
+  return (check(res) as unknown as (BallotRow & {participant_id: string})[]).map(b => b.participants ? {...b, participants: {...b.participants, track: tracks.get(b.participant_id) ?? 'competing'}} : b);
 }
 export async function listAudit(s: Session, page = 1): Promise<{rows: AuditRow[]; total: number}> {
   const {data, error, count} = await s.db.from('audit_logs').select('*', {count: 'exact'}).order('created_at', {ascending: false}).range((page - 1) * 50, page * 50 - 1);

@@ -16,15 +16,16 @@ export default async function AdminVoting() {
   const canEdit = phase0(event?.phase);
   const totalBallots = (counts ?? []).reduce((n, c) => n + Number(c.ballots), 0);
   const totalVotes = (counts ?? []).reduce((n, c) => n + Number(c.total), 0);
-  // Showcase participants don't vote, so turnout counts the competition only.
-  const voters = Math.max(0, stats.participants - (stats.showcase ?? 0));
+  // Everyone votes; showcase ballots are kept but left out of every total.
+  const voters = stats.participants;
+  const uncounted = stats.ballots - (stats.counted_ballots ?? stats.ballots);
   const tz = event?.timezone ?? 'Asia/Kolkata';
   const phase = event?.phase;
   const canInvalidate = phase === 'voting' || phase === 'closed';
   // Who voted for whom: every valid ballot's picks, grouped by project.
   const byProject = new Map<string, {title: string; voters: string[]}>();
   for (const b of ballots) {
-    if (b.status !== 'valid') continue;
+    if (b.status !== 'valid' || b.participants?.track === 'showcase') continue;
     for (const pick of b.ballot_selections ?? []) {
       const entry = byProject.get(pick.submission_id) ?? {title: pick.submissions?.title ?? 'Project', voters: []};
       entry.voters.push(b.participants?.display_name ?? 'Participant');
@@ -48,7 +49,7 @@ export default async function AdminVoting() {
           <div>
             <p className="eyebrow">voting booth</p>
             <h2>{phase === 'voting' ? 'Open: participants can vote now' : phase === 'closed' ? 'Closed: you can reopen it' : phase === 'shortlist_frozen' ? 'Ready to open' : phase === 'results_published' ? 'Results are published' : 'Not ready yet'}</h2>
-            <p className="small muted">{stats.ballots} of {voters} competition participants have voted.{stats.showcase ? ` ${stats.showcase} showcase participants don’t vote.` : ''}</p>
+            <p className="small muted">{stats.ballots} of {voters} participants have voted.{uncounted ? ` ${uncounted} of those ballots are from showcase participants and don’t count.` : ''}</p>
             <Progress value={stats.ballots} max={voters} label="Turnout"/>
           </div>
           <div className="phase-actions">
@@ -107,7 +108,7 @@ export default async function AdminVoting() {
                 <code>{b.id.slice(0, 8)}</code>
                 <span className="ledger-who"><strong>{b.participants?.display_name}</strong><small>{b.participants?.email} · {formatDate(b.submitted_at, tz)}</small></span>
                 <span className="ledger-picks">{(b.ballot_selections ?? []).map(p => <span key={p.submission_id} className="chip-pick">{p.submissions?.title}</span>)}</span>
-                <Badge status={b.status}/>
+                <span className="badge-row"><Badge status={b.status}/>{b.participants?.track === 'showcase' && <Badge tone="cream">showcase · not counted</Badge>}</span>
                 {b.status === 'invalidated' ? <small className="ledger-reason">{b.invalidated_reason}</small> : canInvalidate && (
                   <ConfirmAction action={adminAction} label="Invalidate" title="invalidate_ballot.exe" phrase="INVALIDATE" variant="small-button danger"
                     fields={<><input type="hidden" name="op" value="invalidate"/><input type="hidden" name="id" value={b.id}/>
@@ -122,7 +123,7 @@ export default async function AdminVoting() {
       </Window>
       <Window title="votes_by_project.csv" icon="trophy" reveal>
         <h2>Who voted for each project</h2>
-        <p className="small muted">Valid ballots only. Invalidated ballots are left out.</p>
+        <p className="small muted">Counted ballots only. Invalidated ballots and showcase participants’ ballots are left out.</p>
         {tally.length ? (
           <ul className="who-voted" data-lenis-prevent>
             {tally.map(t => (

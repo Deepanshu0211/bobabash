@@ -13,7 +13,7 @@ test('uploads detect PNG JPEG and WebP signatures',()=>{
 test('uploads reject executable formats, empty content, and spoofed MIME',()=>{
  assert.throws(()=>checkImage(new TextEncoder().encode('<svg onload=alert(1)>'),'image/png'));
  assert.throws(()=>checkImage(new Uint8Array(),'image/png'));
- assert.throws(()=>checkImage(Uint8Array.from([255,216,255]),'image/png'));
+ assert.equal(checkImage(Uint8Array.from([255,216,255]),'image/png').ext,'jpg'); // bytes win over the declared type
  assert.equal(imageKind(new Uint8Array([1,2,3])),null);
 });
 test('uploads enforce 5 MB before storage',()=>{assert.throws(()=>checkImage(new Uint8Array(5*1024*1024+1),'image/png'),/5 MB/);});

@@ -37,9 +37,6 @@ export default async function SubmissionPage() {
       <PageHeading eyebrow="from idea to internet" title={restarting ? 'Start a new project' : mine ? 'Your project' : 'What have you been making?'} art="step-signup">
         <p>One submission per participant. Save drafts as often as you like; submit before the deadline.</p>
       </PageHeading>
-      {s.participant?.track === 'showcase' && (
-        <div className="notice" data-reveal>You’re in the <strong>showcase</strong>: your project goes on the wall for everyone to see, but it isn’t judged, voted on or eligible for prizes.</div>
-      )}
       <div className="notice deadline-notice" data-reveal>
         {open ? 'Submissions are open. Organizers will announce when they close.' : 'Organizers open and close submissions on the day.'}
       </div>
@@ -109,6 +106,11 @@ export default async function SubmissionPage() {
                 <span className="task-icon"><Icon name="upload"/></span>
                 <p><strong>Add a cover image</strong><br/>Save your draft first, then upload the cover here.</p>
               </div>
+            </Window>
+          )}
+          {!draft && editable && (
+            <Window title="cover.png" reveal>
+              <div className="cover-locked"><Icon name="upload"/><p>Save your draft first (title and description), then you can add a cover image here.</p></div>
             </Window>
           )}
           {draft && (

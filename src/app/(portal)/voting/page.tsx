@@ -18,15 +18,6 @@ export default async function Voting() {
 
       {status.eligible ? (
         <BallotPicker projects={projects} max={event?.max_selections ?? 3}/>
-      ) : status.reason === 'showcase' ? (
-        <Window title="showcase.exe" tone="yellow" className="gate" reveal>
-          <BobaCup filled={0}/>
-          <div>
-            <h2>You’re in the showcase.</h2>
-            <p>Your project is on the wall for everyone to see. Voting and prizes are for the competition list, so there’s no ballot for you.</p>
-            <Link className="button secondary" href="/projects">Browse projects →</Link>
-          </div>
-        </Window>
       ) : status.has_ballot ? (
         <Window title="ballot_recorded.exe" tone="lime" className="gate" reveal>
           <BobaCup filled={3}/>

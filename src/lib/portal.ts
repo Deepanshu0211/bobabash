@@ -7,6 +7,7 @@ import {configured} from './supabase/config';
 import {errorStatus} from './rules.mjs';
 import {checkImage} from './security.mjs';
 import {PortalError} from './errors';
+import {adminClient, directEntryConfigured} from './supabase/admin';
 import type {
   Assignment, AuditRow, Award, BallotRow, Decision, EventSettings, Overview, Participant, Receipt,
   AwardType, ResultRow, Role, Staff, Submission, TallyRow, Track, VoteCount, VotingStatus, WallProject, WallView
@@ -76,7 +77,12 @@ export const getEvent = cache(async (): Promise<EventSettings | null> => {
 async function signCovers<T extends {cover_image_path: string | null; cover?: string | null}>(s: Session, rows: T[]): Promise<T[]> {
   const paths = [...new Set(rows.flatMap(r => r.cover_image_path ? [r.cover_image_path] : []))];
   if (!paths.length) return rows;
-  const {data} = await s.db.storage.from('project-covers').createSignedUrls(paths, 600);
+  // Only rows the database already let this person see reach here (the wall, a project page,
+  // their own submission), so the server signs their covers. Signing as the person failed for
+  // everyone else's project: storage can't see other submissions through their row-level access.
+  // Links last 6 hours so images further down a long-open page still load.
+  const storage = (directEntryConfigured ? adminClient() : s.db).storage.from('project-covers');
+  const {data} = await storage.createSignedUrls(paths, 6 * 3600);
   return rows.map(r => ({...r, cover: data?.find(u => u.path === r.cover_image_path)?.signedUrl ?? null}));
 }
 
@@ -179,8 +185,11 @@ export const submitReview = (s: Session, id: string, recommendation: string, cri
 
 // ───────────── organizer ─────────────
 export const getOverview = (s: Session) => rpc<Overview>(s, 'admin_overview');
-// Tracks for organizer pages only; participant pages never load them.
+// Tracks for organizer pages only; participant pages never load them. After the secret-showcase
+// patch the column is hidden and organizers read it through admin_participant_tracks().
 async function trackMap(s: Session) {
+  const viaRpc = await s.db.rpc('admin_participant_tracks');
+  if (!viaRpc.error) return new Map<string, Track>((viaRpc.data as {participant_id: string; track: Track}[]).map(r => [r.participant_id, r.track]));
   const {data, error} = await s.db.from('participants').select('id,track');
   return new Map<string, Track>(error ? [] : (data as {id: string; track: Track}[]).map(r => [r.id, r.track]));
 }

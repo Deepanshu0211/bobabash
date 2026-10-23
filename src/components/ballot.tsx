@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import {useRouter} from 'next/navigation';
-import {useMemo, useRef, useState} from 'react';
+import {useEffect, useMemo, useRef, useState} from 'react';
 import {ProjectCard} from './project-card';
 import {Icon} from './icons';
 import {toast} from './form';
@@ -23,15 +23,32 @@ export function BobaCup({filled, max = 3}: {filled: number; max?: number}) {
   );
 }
 
+// Picks survive opening a project and coming back (this browser tab only).
+const PICKS_KEY = 'bb-ballot-picks';
+function savedPicks(allowed: string[], max: number) {
+  try { return (JSON.parse(sessionStorage.getItem(PICKS_KEY) ?? '[]') as string[]).filter(id => allowed.includes(id)).slice(0, max); } catch { return []; }
+}
+
 export function BallotPicker({projects, max}: {projects: WallProject[]; max: number}) {
   const router = useRouter();
   const [selected, setSelected] = useState<string[]>([]);
+  const restored = useRef(false);
   const [query, setQuery] = useState('');
   const [agreed, setAgreed] = useState(false);
   const [state, setState] = useState<'pick' | 'sending' | 'done'>('pick');
   const [error, setError] = useState<{status: number; message: string} | null>(null);
   const dialog = useRef<HTMLDialogElement>(null);
 
+  // Restore after the first paint (the server can't know them), then keep the saved copy in step.
+  useEffect(() => {
+    if (!restored.current) {
+      restored.current = true;
+      const saved = savedPicks(projects.filter(p => !p.is_mine).map(p => p.id), max);
+      if (saved.length) queueMicrotask(() => setSelected(saved));
+      return;
+    }
+    try { sessionStorage.setItem(PICKS_KEY, JSON.stringify(selected)); } catch {}
+  }, [selected, projects, max]);
   const own = projects.find(p => p.is_mine)?.id ?? null;
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -54,6 +71,7 @@ export function BallotPicker({projects, max}: {projects: WallProject[]; max: num
       if (res.status === 201) {
         setState('done');
         toast('Ballot recorded. Thank you for voting!');
+        try { sessionStorage.removeItem(PICKS_KEY); } catch {}
         setTimeout(() => { router.push('/voting/receipt'); router.refresh(); }, 1700);
         return;
       }
@@ -82,7 +100,7 @@ export function BallotPicker({projects, max}: {projects: WallProject[]; max: num
           const on = selected.includes(p.id);
           const full = !on && selected.length >= max;
           return (
-            <ProjectCard key={p.id} project={p} selected={on} href={null} footer={
+            <ProjectCard key={p.id} project={p} selected={on} footer={
               p.is_mine ? <span className="muted"><Icon name="lock" size={14}/> You can’t vote for your own project</span> :
                 <button type="button" className={'pick-button' + (on ? ' on' : '')} aria-pressed={on} disabled={full || state !== 'pick'} onClick={() => toggle(p.id)}>
                   <span className="pick-pearl" aria-hidden="true"/>{on ? 'In your cup' : full ? 'Cup is full' : 'Add to cup'}

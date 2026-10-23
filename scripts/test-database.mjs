@@ -68,7 +68,7 @@ test('identity linking and roles', async () => {
   await fails(as('p7', 'select * from public.project_wall()'), 'BB403');
   await fails(as('p1', "insert into public.user_roles (user_id, role) values (auth.uid(), 'organizer')"), '42501');
   await fails(as('p1', 'select public.admin_overview()'), 'BB403');
-  assert.equal((await as('p1', 'select * from public.participants')).length, 1, 'participants only see their own roster row');
+  assert.equal((await as('p1', 'select id, display_name from public.participants')).length, 1, 'participants only see their own roster row');
 });
 
 test('submissions', async () => {

@@ -18,7 +18,9 @@ export default async function ProjectDetail({params}: {params: Promise<{id: stri
   const canVote = s.roles.includes('participant') && votingOpen(event) && project.is_shortlisted && !project.is_mine;
   return (
     <div className="stack-lg">
-      <Link href="/projects" className="back-link">← All projects</Link>
+      {s.roles.includes('participant') && votingOpen(event)
+        ? <Link href="/voting" className="back-link">← Back to the voting booth</Link>
+        : <Link href="/projects" className="back-link">← All projects</Link>}
       <div className="detail-grid">
         <div className="stack">
           <div className="detail-cover" data-reveal><Cover id={project.id} src={project.cover} title={project.title} size="hero"/></div>

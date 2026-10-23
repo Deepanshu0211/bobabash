@@ -58,7 +58,7 @@ test('no role can write to any table directly', async () => {
 });
 
 test('a signed-in stranger sees nothing and can call nothing', async () => {
-  for (const t of TABLES.filter(t => t !== 'event_settings')) assert.equal((await as('x', `select * from public.${t}`)).length, 0, t);
+  for (const t of TABLES.filter(t => t !== 'event_settings')) assert.equal((await as('x', `select ${t === 'participants' ? 'id' : '*'} from public.${t}`)).length, 0, t);
   await fails(as('x', 'select * from public.project_wall()'), 'BB403');
   await fails(as('x', "select public.save_my_submission('{}')"), 'BB403');
   await fails(as('x', "select public.submit_review(gen_random_uuid(), 'shortlist', '{}', '')"), 'BB403');
@@ -125,21 +125,27 @@ test('submission rules: length, links, ownership, deactivation', async () => {
   await as('org', 'select public.admin_set_participant_active($1, true)', [id]);
 });
 
-test('showcase projects stay on the wall but can never compete', async () => {
+test('showcase is invisible: projects look normal on the wall and can be checked like any other', async () => {
   await as('org', 'select public.admin_import_roster($1)', [JSON.stringify([{email: 'h@q.test', display_name: 'Hal', track: 'showcase'}])]);
   await fails(as('org', 'select public.admin_import_roster($1)', [JSON.stringify([{email: 'z@q.test', display_name: 'Zed', track: 'judge'}])]), 'BB400');
   await user('h', 'h@q.test'); await as('h', 'select public.project_wall()').catch(() => {});
   await as('h', 'select public.save_my_submission($1, true)', [{title: 'Hal showcase', description: 'A showcase project for everyone to see.', demo_url: 'https://h.test', repository_url: 'https://github.com/q/h'}]);
   sub.h = (await as('h', 'select id from public.submissions'))[0].id;
   const wall = await as('a', 'select title, status from public.project_wall()');
-  assert.equal(wall.find(w => w.title === 'Hal showcase')?.status, 'showcase', 'on the wall (the app shows it as a normal project)');
-  await fails(as('org', 'select public.admin_set_eligibility($1, true, null)', [sub.h]), 'BB409');
-  // Moved into the competition it can be checked; moved back out, it leaves review again.
+  assert.equal(wall.find(w => w.title === 'Hal showcase')?.status, 'submitted', 'on the wall like any other project');
+  assert.ok(wall.every(w => w.status !== 'showcase'), 'no showcase label anywhere on the wall');
+  assert.notEqual((await as('h', 'select public.my_voting_status() s'))[0].s.reason, 'showcase', 'voting status never says showcase');
+  await fails(as('h', 'select track from public.participants'), '42501'); // cannot read their own track
+  assert.equal((await as('h', 'select display_name from public.participants')).length, 1, 'other columns still readable');
+  // Track changes leave the visible project untouched.
   const [{id: hid}] = (await db.query("select id from public.participants where email = 'h@q.test'")).rows;
   await as('org', "select public.admin_set_participant_track($1, 'competing')", [hid]);
   await as('org', 'select public.admin_set_eligibility($1, true, null)', [sub.h]);
   await as('org', 'select public.admin_import_roster($1)', [JSON.stringify([{email: 'h@q.test', display_name: 'Hal', track: 'showcase'}])]);
-  assert.equal((await db.query('select status from public.submissions where id = $1', [sub.h])).rows[0].status, 'submitted', 'showcase leaves review');
+  assert.equal((await db.query('select status from public.submissions where id = $1', [sub.h])).rows[0].status, 'eligible', 'still shows eligible');
+  assert.ok(!(await as('org', 'select submission_id from public.shortlist_tally()')).some(t => t.submission_id === sub.h), 'kept out of the review tally');
+  assert.equal((await as('org', 'select * from public.admin_participant_tracks()')).find(t => t.participant_id === hid).track, 'showcase');
+  await fails(as('h', 'select * from public.admin_participant_tracks()'), 'BB403');
   await as('org', 'select public.admin_import_roster($1)', [JSON.stringify([{email: 'h@q.test', display_name: 'Hal Again'}])]);
   assert.equal((await db.query("select track from public.participants where email = 'h@q.test'")).rows[0].track, 'showcase', 'import without a track keeps it');
   assert.equal((await db.query("select count(*)::int n from public.audit_logs where action = 'participant.track_changed'")).rows[0].n, 2);
@@ -223,15 +229,21 @@ test('removing a participant takes their project along, but never once votes exi
   }
 });
 
-test('organizers can set vote totals by hand, and showcase participants cannot vote', async () => {
+test('organizers can set vote totals by hand; showcase ballots are accepted but never counted', async () => {
   const [{phase}] = (await db.query('select phase from public.event_settings')).rows;
   assert.equal(phase, 'voting', 'earlier tests leave voting open');
   const [{id: hid}] = (await db.query("select id from public.participants where email = 'h@q.test'")).rows;
   await fails(as('org', "select public.admin_set_participant_track($1, 'competing')", [hid]), 'BB403'); // frozen
-  assert.equal((await as('h', 'select public.my_voting_status() s'))[0].s.reason, 'showcase');
+  assert.equal((await db.query('select shortlist_status from public.submissions where id = $1', [sub.h])).rows[0].shortlist_status, 'not_shortlisted', 'showcase never shortlisted');
+  assert.equal((await as('h', 'select public.my_voting_status() s'))[0].s.eligible, true, 'showcase can vote like anyone');
   const counts = await as('org', 'select * from public.admin_vote_counts()');
   const target = counts[counts.length - 1];
-  await fails(as('h', 'select public.submit_ballot($1)', [counts.slice(0, 3).map(c => c.submission_id)]), 'BB403');
+  await as('h', 'select public.submit_ballot($1)', [counts.slice(0, 3).map(c => c.submission_id)]);
+  assert.ok((await as('h', 'select public.my_ballot_receipt() r'))[0].r.ballot_id, 'they get a normal receipt');
+  const recount = await as('org', 'select * from public.admin_vote_counts()');
+  for (const c of counts) assert.equal(Number(recount.find(r => r.submission_id === c.submission_id).total), Number(c.total), 'showcase ballot not counted');
+  const ov = (await as('org', 'select public.admin_overview() o'))[0].o;
+  assert.equal(ov.ballots - ov.counted_ballots, 1, 'organizers see one uncounted ballot');
   await fails(as('org', "select public.admin_set_votes($1, 10, 'short')", [target.submission_id]), 'BB400');
   await fails(as('org', "select public.admin_set_votes($1, -1, 'a long enough reason')", [target.submission_id]), 'BB400');
   await fails(as('org', "select public.admin_set_votes($1, 5, 'a long enough reason')", [sub.h]), 'BB404');

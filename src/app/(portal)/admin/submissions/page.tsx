@@ -45,8 +45,8 @@ export default async function AdminSubmissions({searchParams}: {searchParams: Pr
                 <p className="prose">{r.description}</p>
                 <ExternalLinks demo={r.demo_url} repo={r.repository_url} compact/>
                 <p className="small muted">Category {r.category} · submitted {formatDate(r.submitted_at, event?.timezone)}{r.eligibility_reason && <> · reason: {r.eligibility_reason}</>}</p>
-                {r.participants?.track === 'showcase' && <p className="notice">Showcase project (only organizers see this). It stays on the wall as a normal project awaiting its check, and is never judged, shortlisted or voted for.</p>}
-                {checking && r.participants?.track !== 'showcase' && ['submitted', 'eligible', 'ineligible'].includes(r.status) && (
+                {r.participants?.track === 'showcase' && <p className="notice">Showcase project (only organizers see this). Check it like any other so it looks normal; it skips review and is never shortlisted.</p>}
+                {checking && ['submitted', 'eligible', 'ineligible'].includes(r.status) && (
                   <div className="decision-forms">
                     <ActionForm action={adminAction} label="✓ Mark eligible" variant="lime">
                       <input type="hidden" name="op" value="eligibility"/><input type="hidden" name="id" value={r.id}/><input type="hidden" name="eligible" value="true"/>

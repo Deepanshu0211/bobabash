@@ -31,7 +31,7 @@ export default async function People({searchParams}: {searchParams: Promise<{tra
             <TextArea label="One per line: email, display name" name="roster" rows={6} maxLength={60000} required placeholder={'ana@example.com, Ana\nleo@example.com, Leo'}/>
             <Select label="Import as" name="track" options={[
               {value: 'competing', label: 'Competition: judged, votes and can win'},
-              {value: 'showcase', label: 'Showcase (hidden from them): on the wall, never judged or shortlisted, no ballot'}
+              {value: 'showcase', label: 'Showcase (hidden from them): looks normal and votes, but never shortlisted and their votes don’t count'}
             ]}/>
             <small className="muted">Existing emails update their display name and move to the chosen track. Re-importing is safe.</small>
           </ActionForm>
@@ -79,8 +79,8 @@ export default async function People({searchParams}: {searchParams: Promise<{tra
                   <ConfirmAction action={adminAction} label={p.track === 'showcase' ? 'To competition' : 'To showcase'} title="change_track.exe" variant="small-button secondary"
                     fields={<><input type="hidden" name="op" value="track"/><input type="hidden" name="id" value={p.id}/><input type="hidden" name="track" value={p.track === 'showcase' ? 'competing' : 'showcase'}/></>}>
                     {p.track === 'showcase'
-                      ? <p>Moves <strong>{p.display_name}</strong> into the competition. Their project can be checked, reviewed and shortlisted, and they can vote.</p>
-                      : <p>Moves <strong>{p.display_name}</strong> to the showcase. They aren’t told, and no showcase label is shown to participants. {p.project ? <>Their project <strong>{p.project}</strong> stays on the wall but leaves review (eligibility and reviews are cleared).</> : 'Their project will stay on the wall and never be judged.'} They won’t get a ballot.</p>}
+                      ? <p>Moves <strong>{p.display_name}</strong> into the competition. Their project can be shortlisted and their ballot will count.</p>
+                      : <p>Moves <strong>{p.display_name}</strong> to the showcase. They aren’t told, and nothing changes on their screen. {p.project ? <>Their project <strong>{p.project}</strong> stays exactly as it is, but</> : 'Their project'} will never be shortlisted, and their ballot won’t count.</p>}
                   </ConfirmAction>
                 )}
                 <ActionForm action={adminAction} label={p.active ? 'Deactivate' : 'Reactivate'} variant="small-button secondary">

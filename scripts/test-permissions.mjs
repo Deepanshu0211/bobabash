@@ -271,3 +271,4 @@ test('votes stay secret: nobody but organizers sees any vote until results are p
   assert.equal((await as(null, 'select * from public.public_highlights()')).length, 0, 'landing shows no winners');
   assert.ok((await as('org', 'select * from public.vote_results()')).length > 0, 'organizers can see totals');
 });
+

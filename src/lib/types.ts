@@ -58,4 +58,4 @@ export type Overview = {
   showcase?: number; adjusted_projects?: number; counted_ballots?: number;
 };
 export type VoteCount = {submission_id: string; title: string; ballots: number; delta: number; total: number; reason: string | null; adjusted_at: string | null};
-export type ActionState = {ok?: boolean; message: string; id?: string; needCode?: boolean};
+export type ActionState = {ok?: boolean; message: string; id?: string; needCode?: boolean; codeFor?: 'team' | 'email'};

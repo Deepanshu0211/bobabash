@@ -6,7 +6,8 @@ import {enterPortal} from '@/app/actions';
 
 /**
  * Two-step entry: everyone starts with their email. Participants go straight in; when the
- * server says the email belongs to a volunteer or organizer, the team access code step appears.
+ * server says the email needs a code (the team code, or a participant's personal code once
+ * organizers have handed them out), the code step appears.
  */
 export function LoginForm({next, direct, eventCode}: {next: string; direct: boolean; eventCode: boolean}) {
   const [state, formAction, pending] = useActionState(enterPortal, {message: ''});
@@ -31,11 +32,19 @@ export function LoginForm({next, direct, eventCode}: {next: string; direct: bool
         </label>
         {step2 ? (
           <div className="login-step">
-            <label className="field">
-              <span>Team access code</span>
-              <input name="code" type="password" required autoComplete="off" autoFocus/>
-              <small>Volunteers and organizers only. Ask the organizing team if you don’t have it.</small>
-            </label>
+            {state.codeFor === 'email' ? (
+              <label className="field">
+                <span>Code from your email</span>
+                <input name="code" type="text" required inputMode="numeric" autoComplete="one-time-code" spellCheck={false} maxLength={10} placeholder="Enter the code" autoFocus className="code-input"/>
+                <small>Didn’t get it? Check spam, or <button type="submit" name="resend" value="1" formNoValidate className="link-button">send a new code</button>.</small>
+              </label>
+            ) : (
+              <label className="field">
+                <span>Team access code</span>
+                <input name="code" type="password" required autoComplete="off" autoFocus/>
+                <small>Volunteers and organizers only. Ask the organizing team if you don’t have it.</small>
+              </label>
+            )}
             <button type="button" className="link-button" onClick={() => { setDismissed(state); setEmail(''); }}>Not you? Use another email</button>
           </div>
         ) : direct && eventCode && (

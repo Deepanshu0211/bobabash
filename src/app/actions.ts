@@ -6,6 +6,7 @@ import {z} from 'zod';
 import {serverClient} from '@/lib/supabase/server';
 import {configured} from '@/lib/supabase/config';
 import {adminClient, codeMatches, directEntryConfigured} from '@/lib/supabase/admin';
+import {mailConfigured, sendSignInCode} from '@/lib/mail';
 import {PortalError} from '@/lib/errors';
 import {admin, apiSession, saveMyName, saveSubmission, startReview, submitReview, uploadCover, withdrawSubmission, type Session} from '@/lib/portal';
 import {CRITERIA, field, idSchema, parseRoster, reviewSchema, submissionSchema} from '@/lib/validation';
@@ -54,14 +55,18 @@ function throttle(key: string) {
  * the service key, then opens the session itself (generateLink + verifyOtp); no email is sent.
  * Volunteer and organizer emails also need ORGANIZER_ACCESS_CODE: the form asks for it only
  * after the email turns out to be staff (organizers without a configured code fall back to an
- * emailed link). EVENT_ACCESS_CODE, when set, is required from everyone.
+ * emailed link). With PARTICIPANT_EMAIL_CODE=on, participants get a one-time code by email (Supabase
+ * sends it) and must type it, so knowing someone's email is no longer enough. Turn it on only once
+ * Supabase has a real email sender (custom SMTP); the built-in one allows a few emails an hour.
+ * EVENT_ACCESS_CODE, when set, is required from participants otherwise.
  */
 export async function enterPortal(_: ActionState, form: FormData): Promise<ActionState> {
   const next = safeNext(field(form, 'next'));
   try {
     if (!configured) throw new PortalError(503, 'Sign-in opens once the organizers connect the event.');
     const email = z.email('Enter a valid email address.').max(254).parse(field(form, 'email').trim().toLowerCase());
-    const code = field(form, 'code').slice(0, 100);
+    const resend = field(form, 'resend') === '1';
+    const code = resend ? '' : field(form, 'code').slice(0, 100);
     const ip = ((await headers()).get('x-forwarded-for') ?? 'local').split(',')[0].trim();
     throttle(ip);
 
@@ -84,26 +89,57 @@ export async function enterPortal(_: ActionState, form: FormData): Promise<Actio
     if (person.data && !person.data.active && !staff.data?.length) throw new PortalError(403, 'This account is paused. Talk to an organizer at the help desk.');
 
     const staffCode = process.env.ORGANIZER_ACCESS_CODE;
+    let signedIn = false;
     if (staff.data?.length && staffCode) {
       // Volunteers and organizers: second step asks for the team code.
-      if (!code.trim()) return {ok: false, needCode: true, id: 'ask', message: 'You’re on the team. Enter the team access code to continue.'};
-      if (!codeMatches(code, staffCode)) return {ok: false, needCode: true, message: 'That access code isn’t right.'};
+      if (!code.trim()) return {ok: false, needCode: true, codeFor: 'team', id: 'ask', message: 'You’re on the team. Enter the team access code to continue.'};
+      if (!codeMatches(code, staffCode)) return {ok: false, needCode: true, codeFor: 'team', message: 'That access code isn’t right.'};
+    } else if (person.data && !staff.data?.length && process.env.PARTICIPANT_EMAIL_CODE === 'on') {
+      // Participants: a one-time code sent to their inbox by Supabase.
+      const db = await serverClient();
+      const typed = code.replace(/\s+/g, '');
+      if (!typed) {
+        const created = await svc.auth.admin.createUser({email, email_confirm: true});
+        if (created.error && created.error.status !== 422) throw new PortalError(500, 'Could not open your account. Please try again.');
+        throttle('send:' + email);
+        if (mailConfigured) {
+          // Supabase makes the code (without emailing it); the app sends its own designed email.
+          const link = await svc.auth.admin.generateLink({type: 'magiclink', email});
+          const otp = link.data?.properties?.email_otp;
+          if (link.error || !otp) throw new PortalError(500, 'Could not create your code. Please try again.');
+          try { await sendSignInCode(email, otp); } catch (e) {
+            console.error('code email failed:', (e as Error).message);
+            throw new PortalError(500, 'Could not email your code. Please try again.');
+          }
+        } else {
+          const {error} = await db.auth.signInWithOtp({email, options: {shouldCreateUser: false}});
+          if (error?.status === 429) throw new PortalError(429, 'Too many code emails right now. Wait a minute and try again.');
+          if (error) throw new PortalError(500, 'Could not email your code. Please try again.');
+        }
+        return {ok: false, needCode: true, codeFor: 'email', id: 'ask', message: `We emailed a sign-in code to ${email}. Check your inbox and spam folder.`};
+      }
+      throttle('code:' + email);
+      const {error} = await db.auth.verifyOtp({email, token: typed, type: 'email'});
+      if (error) return {ok: false, needCode: true, codeFor: 'email', message: 'That code isn’t right or has expired. Use the newest email, or send a new code.'};
+      signedIn = true;
     } else if (!codeMatches(code, process.env.EVENT_ACCESS_CODE)) throw new PortalError(403, 'That access code isn’t right.');
-    if (organizer && !staffCode) {
+    if (!signedIn && organizer && !staffCode) {
       const db = await serverClient();
       await db.auth.signInWithOtp({email, options: {emailRedirectTo: `${siteURL()}/auth/callback?next=${encodeURIComponent(next)}`, shouldCreateUser: true}});
       return {ok: true, message: 'Organizer accounts confirm by email. Check your inbox for the sign-in link.'};
     }
 
     // Make sure the auth account exists and is confirmed (the auth trigger links roster roles).
-    const created = await svc.auth.admin.createUser({email, email_confirm: true});
-    if (created.error && created.error.status !== 422) throw new PortalError(500, 'Could not open your account. Please try again.');
-    const link = await svc.auth.admin.generateLink({type: 'magiclink', email});
-    const tokenHash = link.data?.properties?.hashed_token;
-    if (link.error || !tokenHash) throw new PortalError(500, 'Could not open your session. Please try again.');
-    const db = await serverClient();
-    const {error} = await db.auth.verifyOtp({type: 'email', token_hash: tokenHash});
-    if (error) throw new PortalError(500, 'Could not open your session. Please try again.');
+    if (!signedIn) {
+      const created = await svc.auth.admin.createUser({email, email_confirm: true});
+      if (created.error && created.error.status !== 422) throw new PortalError(500, 'Could not open your account. Please try again.');
+      const link = await svc.auth.admin.generateLink({type: 'magiclink', email});
+      const tokenHash = link.data?.properties?.hashed_token;
+      if (link.error || !tokenHash) throw new PortalError(500, 'Could not open your session. Please try again.');
+      const db = await serverClient();
+      const {error} = await db.auth.verifyOtp({type: 'email', token_hash: tokenHash});
+      if (error) throw new PortalError(500, 'Could not open your session. Please try again.');
+    }
   } catch (error) { return failure(error); }
   revalidatePath('/', 'layout');
   redirect(next);

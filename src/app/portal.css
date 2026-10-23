@@ -1026,3 +1026,21 @@ code, pre, kbd { font-family: var(--font-mono); }
 .file-drop-text { display: grid; gap: 3px; }
 .file-drop-text strong { font-size: 14.5px; color: #24495a; }
 .file-drop-text small { color: #6c8890; font-size: 12px; }
+.code-input { font-family: var(--font-mono, ui-monospace, monospace); letter-spacing: .3em; text-transform: uppercase; font-size: 18px; }
+
+/* ───────── personal codes ───────── */
+.code-chip { font-family: var(--font-mono, ui-monospace, monospace); font-size: 12px; letter-spacing: .12em; padding: 2px 7px; border-radius: 4px; background: #fff1c9; border: 1px solid #ddbe8c; color: #7a5a1d; }
+.slips-page { display: grid; gap: 18px; }
+.slips-tools h1 { margin: 0; }
+.slips { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 0; border-top: 1.5px dashed #9fb4b8; border-left: 1.5px dashed #9fb4b8; }
+.slip { display: grid; gap: 4px; padding: 16px 18px; border-right: 1.5px dashed #9fb4b8; border-bottom: 1.5px dashed #9fb4b8; background: #fffef6; break-inside: avoid; }
+.slip-event { font-size: 10.5px; text-transform: uppercase; letter-spacing: .1em; color: #6c8890; }
+.slip-name { font-size: 15px; color: #24495a; }
+.slip-email { font-size: 11.5px; color: #6c8890; overflow-wrap: anywhere; }
+.slip-code { font-family: var(--font-mono, ui-monospace, monospace); font-size: 26px; letter-spacing: .28em; color: #24495a; margin: 6px 0 2px; }
+.slip-help { font-size: 11px; color: #6c8890; }
+@media print {
+  .no-print, .topbar, .sidebar, .portal-nav, header, footer, .help-card, nextjs-portal { display: none !important; }
+  body, .portal-main, main { background: #fff !important; padding: 0 !important; margin: 0 !important; }
+  .slips { grid-template-columns: repeat(3, 1fr); }
+}

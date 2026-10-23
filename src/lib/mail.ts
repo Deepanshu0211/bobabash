@@ -3,11 +3,15 @@ import nodemailer from 'nodemailer';
 
 // Sign-in code emails, sent by the app itself through Brevo's SMTP relay so the design never
 // depends on Supabase's template settings. Supabase still creates and checks the code.
-const user = process.env.BREVO_SMTP_LOGIN;
-const pass = process.env.BREVO_SMTP_KEY;
-const from = process.env.MAIL_FROM;
+// Trimmed: hosting dashboards often keep a stray space or newline from copy-paste.
+const env = (k: string) => process.env[k]?.trim().replace(/^['"]|['"]$/g, '') || undefined;
+const user = env('BREVO_SMTP_LOGIN');
+const pass = env('BREVO_SMTP_KEY');
+const from = env('MAIL_FROM');
 
 export const mailConfigured = Boolean(user && pass && from);
+/** PARTICIPANT_EMAIL_CODE accepts on/true/yes/1 in any case. */
+export const emailCodeOn = /^(on|true|yes|1)$/i.test(env('PARTICIPANT_EMAIL_CODE') ?? '');
 
 const transport = mailConfigured
   ? nodemailer.createTransport({host: 'smtp-relay.brevo.com', port: 587, secure: false, auth: {user, pass}})

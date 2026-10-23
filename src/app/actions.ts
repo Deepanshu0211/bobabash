@@ -6,7 +6,7 @@ import {z} from 'zod';
 import {serverClient} from '@/lib/supabase/server';
 import {configured} from '@/lib/supabase/config';
 import {adminClient, codeMatches, directEntryConfigured} from '@/lib/supabase/admin';
-import {mailConfigured, sendSignInCode} from '@/lib/mail';
+import {emailCodeOn, mailConfigured, sendSignInCode} from '@/lib/mail';
 import {PortalError} from '@/lib/errors';
 import {admin, apiSession, saveMyName, saveSubmission, startReview, submitReview, uploadCover, withdrawSubmission, type Session} from '@/lib/portal';
 import {CRITERIA, field, idSchema, parseRoster, reviewSchema, submissionSchema} from '@/lib/validation';
@@ -94,7 +94,7 @@ export async function enterPortal(_: ActionState, form: FormData): Promise<Actio
       // Volunteers and organizers: second step asks for the team code.
       if (!code.trim()) return {ok: false, needCode: true, codeFor: 'team', id: 'ask', message: 'You’re on the team. Enter the team access code to continue.'};
       if (!codeMatches(code, staffCode)) return {ok: false, needCode: true, codeFor: 'team', message: 'That access code isn’t right.'};
-    } else if (person.data && !staff.data?.length && process.env.PARTICIPANT_EMAIL_CODE === 'on') {
+    } else if (person.data && !staff.data?.length && emailCodeOn) {
       // Participants: a one-time code sent to their inbox by Supabase.
       const db = await serverClient();
       const typed = code.replace(/\s+/g, '');

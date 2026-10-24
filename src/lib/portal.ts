@@ -9,7 +9,7 @@ import {checkImage} from './security.mjs';
 import {PortalError} from './errors';
 import {adminClient, directEntryConfigured} from './supabase/admin';
 import type {
-  Assignment, AuditRow, Award, BallotRow, Decision, EventSettings, Overview, Participant, Receipt,
+  Assignment, Award, BallotRow, Decision, EventSettings, Overview, Participant, Receipt,
   AwardType, ResultRow, Role, Staff, Submission, TallyRow, Track, VoteCount, VotingStatus, WallProject, WallView
 } from './types';
 
@@ -216,10 +216,6 @@ export const listVoteCounts = (s: Session) => rpc<VoteCount[]>(s, 'admin_vote_co
 export async function listBallots(s: Session): Promise<BallotRow[]> {
   const [res, tracks] = await Promise.all([s.db.from('ballots').select('id,status,submitted_at,invalidated_reason,participant_id,participants(display_name,email),ballot_selections(submission_id,submissions(title))').order('submitted_at', {ascending: false}).limit(1000), trackMap(s)]);
   return (check(res) as unknown as (BallotRow & {participant_id: string})[]).map(b => b.participants ? {...b, participants: {...b.participants, track: tracks.get(b.participant_id) ?? 'competing'}} : b);
-}
-export async function listAudit(s: Session, page = 1): Promise<{rows: AuditRow[]; total: number}> {
-  const {data, error, count} = await s.db.from('audit_logs').select('*', {count: 'exact'}).order('created_at', {ascending: false}).range((page - 1) * 50, page * 50 - 1);
-  return {rows: check({data, error}) as AuditRow[], total: count ?? 0};
 }
 
 export const admin = {

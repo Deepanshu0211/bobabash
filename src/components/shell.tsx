@@ -29,8 +29,7 @@ const NAV: {title: string; role?: Role; items: Item[]}[] = [
     {href: '/admin/shortlist', label: 'Shortlist', icon: 'star'},
     {href: '/admin/voting', label: 'Voting', icon: 'vote'},
     {href: '/admin/results', label: 'Results & awards', icon: 'trophy'},
-    {href: '/admin/people', label: 'People', icon: 'people'},
-    {href: '/admin/audit', label: 'Audit log', icon: 'scroll'}
+    {href: '/admin/people', label: 'People', icon: 'people'}
   ]}
 ];
 

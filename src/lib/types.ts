@@ -49,7 +49,6 @@ export type Decision = {id: string; position: number; tied_submission_ids: strin
 export type Staff = {user_id: string | null; email: string; display_name: string; role: Role; joined: boolean; assigned: number; completed: number};
 export type BallotRow = {id: string; status: 'valid' | 'invalidated'; submitted_at: string; invalidated_reason: string | null; participants: {display_name: string; email: string; track?: Track} | null;
   ballot_selections?: {submission_id: string; submissions: {title: string} | null}[]};
-export type AuditRow = {id: number; actor_id: string | null; action: string; target_type: string | null; target_id: string | null; details: Record<string, unknown>; created_at: string};
 export type Receipt = {ballot_id: string; submitted_at: string; status: 'valid' | 'invalidated'; selections: {id: string; title: string}[]};
 export type VotingStatus = {eligible: boolean; reason: 'ok' | 'already_voted' | 'voting_closed' | 'not_participant'; has_ballot: boolean};
 export type Overview = {

@@ -3,7 +3,7 @@ import {ACCOUNTS, AUTH, ORGANIZER_ROUTES, PARTICIPANT_ROUTES, REVIEWER_ROUTES, s
 
 const PROTECTED = [...PARTICIPANT_ROUTES, ...REVIEWER_ROUTES, ...ORGANIZER_ROUTES, '/projects/00000000-0000-4000-8000-000000000000'];
 const API = ['/api/me', '/api/event', '/api/projects', '/api/my-submission', '/api/voting/eligibility', '/api/voting/projects', '/api/voting/receipt',
-  '/api/reviewer/assignments', '/api/admin/overview', '/api/admin/submissions', '/api/admin/reviews', '/api/admin/results', '/api/admin/audit-logs'];
+  '/api/reviewer/assignments', '/api/admin/overview', '/api/admin/submissions', '/api/admin/reviews', '/api/admin/results'];
 
 test.describe('signed out', () => {
   for (const route of PROTECTED) {

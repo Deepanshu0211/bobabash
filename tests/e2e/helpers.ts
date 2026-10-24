@@ -14,7 +14,7 @@ export const AUTH = {
 export const PUBLIC_ROUTES = ['/', '/event-rules', '/login'];
 export const PARTICIPANT_ROUTES = ['/dashboard', '/projects', '/results', '/submission', '/voting', '/voting/receipt'];
 export const REVIEWER_ROUTES = ['/reviewer/queue'];
-export const ORGANIZER_ROUTES = ['/admin/overview', '/admin/submissions', '/admin/reviews', '/admin/shortlist', '/admin/voting', '/admin/results', '/admin/people', '/admin/audit'];
+export const ORGANIZER_ROUTES = ['/admin/overview', '/admin/submissions', '/admin/reviews', '/admin/shortlist', '/admin/voting', '/admin/results', '/admin/people'];
 export const VIEWPORTS = {phone: {width: 375, height: 812}, tablet: {width: 768, height: 1024}, desktop: {width: 1440, height: 900}};
 
 /** Signs in through the real login form (direct entry). */

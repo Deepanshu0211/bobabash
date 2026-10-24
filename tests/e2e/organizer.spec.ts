@@ -26,7 +26,7 @@ test.describe('organizer desk', () => {
       expect((await page.locator('.user-chip .badge').allInnerTexts()).sort()).toEqual(['organizer', 'reviewer']);
     });
     const nav = page.getByRole('navigation', {name: 'Portal'}).first();
-    for (const label of ['Overview', 'Submissions', 'Reviews', 'Shortlist', 'Voting', 'Results & awards', 'People', 'Audit log', 'Review queue']) {
+    for (const label of ['Overview', 'Submissions', 'Reviews', 'Shortlist', 'Voting', 'Results & awards', 'People', 'Review queue']) {
       await expect(nav.getByRole('link', {name: label, exact: true})).toBeVisible();
     }
     await expect(nav).not.toContainText('My submission');
@@ -115,7 +115,7 @@ test.describe('organizer desk', () => {
     await expect(row.locator('.admin-row-body')).toBeVisible();
   });
 
-  test('reviews, shortlist, voting, results, people and audit show their tools', async ({page}) => {
+  test('reviews, shortlist, voting, results and people show their tools', async ({page}) => {
     await page.goto('/admin/reviews');
     await expect(page.getByText('workload.exe')).toBeVisible();
     await expect(page.getByRole('heading', {name: 'Auto-assign'})).toBeVisible();
@@ -129,19 +129,11 @@ test.describe('organizer desk', () => {
     await page.goto('/admin/people');
     await expect(page.locator('.people-list').first()).toContainText('Tejas');
     await expect(page.locator('.people-list.roster')).toContainText('Test Participant 1');
-    await page.goto('/admin/audit');
-    await expect(page.locator('.audit li').first()).toBeVisible();
   });
 
-  test('audit entries open to show details', async ({page}) => {
-    await page.goto('/admin/audit');
-    const entry = page.locator('.audit details').first();
-    await entry.locator('summary').click();
-    await expect(entry.locator('pre')).toBeVisible();
-  });
 
   test('organizer APIs answer 200', async ({request}) => {
-    for (const path of ['/api/admin/overview', '/api/admin/submissions', '/api/admin/reviews', '/api/admin/audit-logs', '/api/reviewer/assignments']) {
+    for (const path of ['/api/admin/overview', '/api/admin/submissions', '/api/admin/reviews', '/api/reviewer/assignments']) {
       expect((await request.get(path)).status(), path).toBe(200);
     }
     const overview = await (await request.get('/api/admin/overview')).json();

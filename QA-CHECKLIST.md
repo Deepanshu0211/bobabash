@@ -125,7 +125,6 @@ Voting and results:
 - [ ] Invalidate a ballot (needs a 20+ character reason); totals drop by that ballot's points.
 - [ ] Close voting, record both awards, record a tie-break if offered, Publish (type PUBLISH).
 - [ ] Participants now see the podium, award cards and the full list.
-- [ ] Audit log lists every action above; entries open to show details.
 
 ## 6. Feel and polish
 

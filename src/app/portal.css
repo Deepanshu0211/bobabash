@@ -1044,3 +1044,5 @@ code, pre, kbd { font-family: var(--font-mono); }
   body, .portal-main, main { background: #fff !important; padding: 0 !important; margin: 0 !important; }
   .slips { grid-template-columns: repeat(3, 1fr); }
 }
+.edit-dot { justify-self: center; width: 9px; height: 9px; border-radius: 50%; background: #d9a320; box-shadow: 0 0 0 3px #fff1c9; }
+.edit-dot:focus-visible { outline: 2px solid #2d6479; outline-offset: 3px; }

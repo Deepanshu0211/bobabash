@@ -83,9 +83,11 @@ export default async function AdminVoting() {
           <ul className="vote-totals" data-lenis-prevent>
             {counts.map(c => (
               <li key={c.submission_id}>
-                <span className="vote-title"><strong>{c.title}</strong>{c.delta !== 0 && <small>{c.ballots} from ballots, {c.delta > 0 ? '+' : ''}{c.delta} by hand: {c.reason}</small>}</span>
+                <span className="vote-title"><strong>{c.title}</strong></span>
                 <b className="vote-total">{c.total}</b>
-                {c.delta !== 0 ? <Badge tone="yellow">edited</Badge> : <span/>}
+                {c.delta !== 0
+                  ? <span className="edit-dot" aria-hidden="true"/>
+                  : <span/>}
                 {canEdit ? (
                   <ConfirmAction action={adminAction} label="Edit" title="edit_votes.exe" variant="small-button secondary"
                     fields={<><input type="hidden" name="op" value="votes"/><input type="hidden" name="id" value={c.submission_id}/>

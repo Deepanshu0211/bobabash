@@ -13,7 +13,7 @@ export default async function AdminResults() {
   const closed = phase === 'closed';
   // Groups of projects sharing a standing within the top five are candidates for a tie-break.
   const ties = results ? [...new Set(results.map(r => r.standing))]
-    .map(standing => results.filter(r => r.standing === standing)).filter(g => g.length > 1 && g[0].standing <= 5 && g[0].votes > 0) : [];
+    .map(standing => results.filter(r => r.standing === standing)).filter(g => g.length > 1 && g[0].standing <= 5 && (g[0].votes ?? 0) > 0) : [];
   const options = wall.projects.map(p => ({value: p.id, label: p.title}));
   return (
     <div className="stack-lg">
@@ -41,7 +41,7 @@ export default async function AdminResults() {
               ))}
             </Window>
           )}
-          <ResultsBoard results={results} awards={awards} decisions={decisions}/>
+          <ResultsBoard results={results} awards={awards} decisions={decisions} showCounts/>
         </>
       ) : <Empty title="Totals unlock when voting starts." art="drink"><p>Even organizers can’t see vote counts before the ballot box opens.</p></Empty>}
 

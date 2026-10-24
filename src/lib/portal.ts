@@ -157,7 +157,7 @@ export const submitBallot = (s: Session, ids: string[]) => rpc<string>(s, 'submi
 
 /** Returns null when the caller may not see totals yet, so the leaderboard stays hidden. */
 export async function getResults(s: Session): Promise<ResultRow[] | null> {
-  try { return (await rpc<ResultRow[]>(s, 'vote_results')).map(r => ({...r, votes: Number(r.votes), standing: Number(r.standing)})); }
+  try { return (await rpc<ResultRow[]>(s, 'vote_results')).map(r => ({...r, votes: r.votes === null ? null : Number(r.votes), standing: Number(r.standing)})); }
   catch (e) { if (e instanceof PortalError && e.status === 403) return null; throw e; }
 }
 export async function getAwards(s: Session): Promise<Award[]> {

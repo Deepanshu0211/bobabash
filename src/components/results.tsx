@@ -5,9 +5,10 @@ import type {Award, Decision, ResultRow} from '@/lib/types';
 
 const AWARD_NAMES = {creative: 'Creative Award', best_github: 'Best GitHub Award'} as const;
 
-export function ResultsBoard({results, awards, decisions, linkProjects = true}: {results: ResultRow[]; awards: Award[]; decisions: Decision[]; linkProjects?: boolean}) {
-  const top = Math.max(1, ...results.map(r => r.votes));
-  const podium = results.filter(r => r.standing <= 3 && r.votes > 0).slice(0, 3);
+// Everyone sees rankings and winners; only organizers (showCounts) see vote numbers and bars.
+export function ResultsBoard({results, awards, decisions, linkProjects = true, showCounts = false}: {results: ResultRow[]; awards: Award[]; decisions: Decision[]; linkProjects?: boolean; showCounts?: boolean}) {
+  const top = Math.max(1, ...results.map(r => r.votes ?? 0));
+  const podium = results.filter(r => r.standing <= 3 && (r.votes === null || r.votes > 0)).slice(0, 3);
   const tied = (r: ResultRow) => results.filter(o => o.standing === r.standing).length > 1;
   const title = (id: string) => results.find(r => r.submission_id === id)?.title ?? 'a project';
   const name = (r: ResultRow) => linkProjects ? <Link href={'/projects/' + r.submission_id}>{r.title}</Link> : r.title;
@@ -22,7 +23,7 @@ export function ResultsBoard({results, awards, decisions, linkProjects = true}: 
               <span className="medal">{r.standing}</span>
               <strong>{name(r)}</strong>
               {r.creator_name && <small>by {r.creator_name}</small>}
-              <em><CountUp value={r.votes}/> votes{tied(r) && ' · tie'}</em>
+              {showCounts && r.votes !== null ? <em><CountUp value={r.votes}/> votes{tied(r) && ' · tie'}</em> : tied(r) && <em>tie</em>}
               <div className="podium-block"/>
             </div>
           ))}
@@ -50,9 +51,9 @@ export function ResultsBoard({results, awards, decisions, linkProjects = true}: 
               <div className="result-main">
                 <strong>{name(r)}</strong>
                 {r.creator_name && <small>by {r.creator_name}</small>}
-                <div className="bar"><span style={{'--w': (r.votes / top) * 100 + '%'} as React.CSSProperties}/></div>
+                {showCounts && r.votes !== null && <div className="bar"><span style={{'--w': (r.votes / top) * 100 + '%'} as React.CSSProperties}/></div>}
               </div>
-              <b className="votes">{r.votes}<small>votes</small></b>
+              {showCounts && r.votes !== null && <b className="votes">{r.votes}<small>votes</small></b>}
             </li>
           ))}
         </ol>

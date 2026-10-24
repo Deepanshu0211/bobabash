@@ -43,7 +43,8 @@ export type TallyRow = {
   outcome: 'pending' | 'flagged' | 'pass' | 'fail'; resolution: ShortlistStatus | null; resolution_reason: string | null;
   shortlist_status: ShortlistStatus;
 };
-export type ResultRow = {submission_id: string; title: string; creator_name: string | null; votes: number; standing: number};
+// votes is null for everyone except organizers: participants and visitors only see rankings.
+export type ResultRow = {submission_id: string; title: string; creator_name: string | null; votes: number | null; standing: number};
 export type Award = {award_type: AwardType; submission_id: string; judged_by: string; rationale: string; published_at: string | null; submissions?: {title: string} | null};
 export type Decision = {id: string; position: number; tied_submission_ids: string[]; winner_submission_id: string | null; shared: boolean; rationale: string; created_at: string};
 export type Staff = {user_id: string | null; email: string; display_name: string; role: Role; joined: boolean; assigned: number; completed: number};

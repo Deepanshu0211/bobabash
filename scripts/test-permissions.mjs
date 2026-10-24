@@ -272,3 +272,12 @@ test('votes stay secret: nobody but organizers sees any vote until results are p
   assert.ok((await as('org', 'select * from public.vote_results()')).length > 0, 'organizers can see totals');
 });
 
+
+test('after publishing, only organizers see vote numbers; everyone else sees rankings', async () => {
+  await as('org', "select public.admin_set_phase('closed')");
+  await as('org', 'select public.admin_publish_results()');
+  const mine = await as('a', 'select * from public.vote_results()');
+  assert.ok(mine.length > 0 && mine.every(r => r.votes === null && r.standing !== null), 'participants: rankings, no numbers');
+  assert.ok((await as('org', 'select * from public.vote_results()')).every(r => r.votes !== null), 'organizers keep the numbers');
+  assert.ok((await as(null, 'select * from public.public_highlights()')).every(r => r.votes === null), 'landing page: no numbers');
+});

@@ -31,7 +31,6 @@ export function Winners({highlights, published}: {highlights: Highlight[]; publi
                 </div>
                 <h3>{real ? w.title : 'a mystery project'}</h3>
                 <p>{real ? (w.creator_name ? `by ${w.creator_name}` : '') : 'could be yours'}</p>
-                {real && <span className="winner-votes">{w.votes} vote{w.votes === 1 ? '' : 's'}</span>}
               </li>
             );
           })}
